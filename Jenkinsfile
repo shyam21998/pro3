@@ -36,13 +36,21 @@ node{
         sh "${mavenCMD} clean package"        
     }
     
-    stage('publish test reports'){
-        publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: '/var/lib/jenkins/workspace/Capstone-Project-Live-Demo/target/surefire-reports', reportFiles: 'index.html', reportName: 'HTML Report', reportTitles: '', useWrapperFileDirectly: true])
+    stage('Publish Test Results') {
+    steps {
+        junit 'target/surefire-reports/*.xml'
+    }
+}
+
     }
     
-    stage('Containerize the application'){
-        echo 'Creating Docker image'
-        sh "${dockerCMD} build -t shubhamkushwah123/insure-me:${tagName} ."
+    stage('Containerize the application') {
+    steps {
+        echo "Creating Docker image"
+        sh "docker build -t shubhamkushwah123/insure-me:3.0 ."
+    }
+}
+
     }
     
     stage('Pushing it ot the DockerHub'){
