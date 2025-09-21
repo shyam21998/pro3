@@ -1,71 +1,42 @@
-node {
-
-    def mavenHome
-    def mavenCMD
-    def dockerCMD
-    def tagName
-
-    stage('Prepare environment') {
-        echo 'Initialize all the variables'
-        mavenHome = tool name: 'maven', type: 'maven'
-        mavenCMD = "${mavenHome}/bin/mvn"
-        dockerCMD = "docker"   // just call docker directly
-        tagName = "3.0"
-    }
-
-    stage('Git Code Checkout') {
-        try {
-            echo 'Checkout the code from Git repository'
-            git 'https://github.com/shyam21998/pro3'
-        } catch (Exception e) {
-            echo 'Exception occurred in Git Code Checkout Stage'
-            currentBuild.result = "FAILURE"
-            emailext(
-                body: """Dear All,
-The Jenkins job ${JOB_NAME} has failed. Please check it immediately:
-${BUILD_URL}""",
-                subject: "Job ${JOB_NAME} #${BUILD_NUMBER} Failed",
-                to: 'shubham@gmail.com'
-            )
+pipeline{
+    agent any
+    stages{
+        stage('checkout the code from github'){
+            steps{
+                 git url: 'https://github.com/shyam21998/pro2/'
+                 echo 'github url checkout'
+            }
         }
-    }
-
-    stage('Build the Application') {
-        echo "Cleaning... Compiling... Testing... Packaging..."
-        sh "${mavenCMD} clean package"
-    }
-
-    stage('Publish Test Results') {
-        junit 'target/surefire-reports/*.xml'
-    }
-
-    stage('Containerize the application') {
-        echo "Creating Docker image"
-        sh "docker build -t shubhamkushwah123/insure-me:${tagName} ."
-    }
-
-    stage('Push to DockerHub') {
-        echo 'Pushing the docker image to DockerHub'
-
-        // Using Jenkins credentials (Username with Password)
-        withCredentials([usernamePassword(
-            credentialsId: 'dockerhub-credentials',  // Replace with your Jenkins credential ID
-            usernameVariable: 'DOCKER_USER',
-            passwordVariable: 'DOCKER_PASS'
-        )]) {
-            sh "${dockerCMD} login -u ${DOCKER_USER} -p ${DOCKER_PASS}"
-            sh "${dockerCMD} push shubhamkushwah123/insure-me:${tagName}"
+        stage('codecompile with akshat'){
+            steps{
+                echo 'starting compiling'
+                sh 'mvn compile'
+            }
         }
-    }
-
-    stage('Configure and Deploy to Test Server') {
-        ansiblePlaybook(
-            become: true,
-            credentialsId: 'ansible-key',
-            disableHostKeyChecking: true,
-            installation: 'ansible',
-            inventory: '/etc/ansible/hosts',
-            playbook: 'ansible-playbook.yml'
-        )
+        stage('codetesting with akshat'){
+            steps{
+                sh 'mvn test'
+            }
+        }
+        stage('qa with akshat'){
+            steps{
+                sh 'mvn checkstyle:checkstyle'
+            }
+        }
+        stage('package with akshat'){
+            steps{
+                sh 'mvn package'
+            }
+        }
+        stage('run dockerfile'){
+          steps{
+               sh 'docker build -t myimg1 .'
+           }
+         }
+        stage('port expose'){
+            steps{
+                sh 'docker run -dt -p 8082:8082 --name c001 myimg1'
+            }
+        }   
     }
 }
